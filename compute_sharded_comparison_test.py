@@ -7,6 +7,7 @@ import numpy as np
 from scipy.stats import binom
 from scipy.stats import t as tdist
 
+from peft import AutoPeftModelForCausalLM
 import torch
 from transformers import AutoTokenizer, AutoModelForCausalLM
 
@@ -79,13 +80,20 @@ def worker(model_name_or_path,
            device,
            main_queue,
            worker_queue,
-           use_bfloat16: bool=True):
+           use_bfloat16,
+           is_peft):
     
     # Load model.
+    loading_kwargs = dict(
+        device_map="auto",
+    )
     if use_bfloat16:
-        m = AutoModelForCausalLM.from_pretrained(model_name_or_path, device_map="auto")
+        loading_kwargs["torch_dtype"] = torch.bfloat16
+
+    if is_peft:
+        m = AutoPeftModelForCausalLM.from_pretrained(model_name_or_path, **loading_kwargs)
     else:
-        m = AutoModelForCausalLM.from_pretrained(model_name_or_path, device_map="auto", torch_dtype=torch.bfloat16)
+        m = AutoModelForCausalLM.from_pretrained(model_name_or_path, **loading_kwargs)
 
     # m.cuda(device)
     main_queue.put((device, True))
@@ -118,7 +126,8 @@ def main(model_name_or_path,
          random_seed=0,
          log_file_path=None,
          max_examples=5000,
-         use_bfloat16: bool = True):
+         use_bfloat16: bool = True,
+         is_peft: bool = True):
 
     # Set random seed(s).
     random.seed(random_seed)
@@ -146,8 +155,9 @@ def main(model_name_or_path,
                                          stride,
                                          gpu.id,
                                          main_queue,
-                                         worker_queues[i]),
-                                         use_bfloat16=use_bfloat16)
+                                         worker_queues[i],
+                                         use_bfloat16,
+                                         is_peft))
         processes.append(p)
         p.start()
         
