@@ -127,7 +127,8 @@ def main(model_name_or_path,
          log_file_path=None,
          max_examples=5000,
          use_bfloat16: bool = True,
-         is_peft: bool = True):
+         is_peft: bool = True,
+         tokenizer_id: str = "mistralai/Mistral-7B-v0.3"):
 
     # Set random seed(s).
     random.seed(random_seed)
@@ -140,7 +141,7 @@ def main(model_name_or_path,
     print(f"Loaded {num_examples} examples from {dataset_path}")
     
     # Load tokenizer and tokenize the examples.
-    t = AutoTokenizer.from_pretrained(model_name_or_path)
+    t = AutoTokenizer.from_pretrained(tokenizer_id)
     tokenized_examples = [t.encode(ex) for ex in examples]
 
     # Launch a Process for each GPU.
