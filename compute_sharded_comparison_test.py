@@ -78,11 +78,16 @@ def worker(model_name_or_path,
            stride,
            device,
            main_queue,
-           worker_queue):
+           worker_queue,
+           use_bfloat16: bool=True):
     
     # Load model.
-    m = AutoModelForCausalLM.from_pretrained(model_name_or_path)
-    m.cuda(device)
+    if use_bfloat16:
+        m = AutoModelForCausalLM.from_pretrained(model_name_or_path, device_map="auto")
+    else:
+        m = AutoModelForCausalLM.from_pretrained(model_name_or_path, device_map="auto", torch_dtype=torch.bfloat16)
+
+    # m.cuda(device)
     main_queue.put((device, True))
     
     # Wait for inference requests.
@@ -112,7 +117,8 @@ def main(model_name_or_path,
          permutations_per_shard=250,
          random_seed=0,
          log_file_path=None,
-         max_examples=5000):
+         max_examples=5000,
+         use_bfloat16: bool = True):
 
     # Set random seed(s).
     random.seed(random_seed)
@@ -140,7 +146,8 @@ def main(model_name_or_path,
                                          stride,
                                          gpu.id,
                                          main_queue,
-                                         worker_queues[i]))
+                                         worker_queues[i]),
+                                         use_bfloat16=use_bfloat16)
         processes.append(p)
         p.start()
         
